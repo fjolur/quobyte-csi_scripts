@@ -1,32 +1,27 @@
-# quobyte-csi_scripts
+This set of scripts setting up Requirements, Deploy Quobyte clients, Deploy Quobyte CSI and Use Quobyte volumes in Kubernetes, described at [quobyte-csi repo](https://github.com/quobyte/quobyte-csi/)
+
+Scripts are developed to be executed against testing environment and as far as it's requires encription-in-transit, you'll need to add ca.pm, client-cert.pem and client-key.pem files to working directory, so they'll be used on Quobyte Clients mount
 
 
-On your host machine install and setup Docker, k8s ans kind
+
+#### On your host machine install and setup Docker, k8s and kind
 Make sure they are working ok - https://kind.sigs.k8s.io/docs/user/quick-start/
 
-Use scripts in following order:
-1. ```setup_kind_cluster_and_login_to_control_plane.sh```
-when your kind cluster is up and running and you're logged in to its control-plane node
+### Run scripts in the following order:
+[From your work directory]
 
-2. copy ```install_csi_3x``` and ```pre-flight_checks.sh``` files to the control-plane node:
+1. `testing--setup_kind_cluster`
+It'll set up a kind cluster and log in to its control-plane node
 
-```
-docker cp <path to scripts>/install_csi_3x $(docker ps -aqf "name=control-plane"):/
-docker cp <path to scripts>/pre-flight_checks.sh $(docker ps -aqf "name=control-plane"):/
-```
-3. Make those scripts executable - at control-plane terminal
-
-```
-chmod +x <path to scripts>/install_csi_3x <path to scripts>/pre-flight_checks.sh
-```
-4. ```./install_csi_3x install``` - to install Quobyte CSI driver
-5. ```./pre-flight_checks.sh``` makes sure use Quobyte volumes in Kubernetes works fine prior e2e tests running
-6. If pre-flight checks went fine, then we can run e2e tests - ```./install_csi_3x e2e```
+#### [On control-plane node]
+2. `./install_csi_3x install` - to [deploy Quobyte CSI driver](https://github.com/quobyte/quobyte-csi#deploy-quobyte-csi-driver) and [deploy containerized Quobyte Clients](https://github.com/quobyte/quobyte-csi/blob/master/docs/install_client/deploy_clients_3_x.md#deploy-containerized-quobyte-client)
+3. `./pre-flight_checks` makes sure use Quobyte volumes provisioned successfully and are accessible, prior e2e tests running
+4. If pre-flight checks went fine, then e2e tests can be executed - `./install_csi_3x e2e`
 
 
 
-To uninstall Quobyte CSI driver - use ```./install_csi_3x uninstall```
+To uninstall Quobyte CSI driver - use `./install_csi_3x uninstall`
 
-To revert changes made to the cluster with pre-flight script - use ```./pre-flight_checks.sh cleanup```
+To revert changes made to the cluster with pre-flight script - use `./pre-flight_checks cleanup`
 
-To delete kind cluster and all related resources - run ```delete_cluster.sh``` on your host machine
+To delete kind cluster and all related resources - execute `delete_cluster` on your host machine (the script is not deleting created docker image)

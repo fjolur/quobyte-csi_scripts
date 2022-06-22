@@ -1,0 +1,20 @@
+#!/bin/bash
+
+sudo kubeadm reset -f
+sudo systemctl stop kubelet && 
+# sudo systemctl stop docker && 
+sudo rm -rf /etc/cni /var/lib/cni/ /etc/kubernetes /var/lib/dockershim /var/lib/etcd /var/lib/kubelet /var/run/kubernetes ~/.kube/*
+
+sudo docker rm $(docker ps -a -q)
+sudo docker volume rm $(docker volume ls -q)
+
+sudo iptables -F && iptables -X &&
+iptables -t nat -F && iptables -t nat -X &&
+iptables -t raw -F && iptables -t raw -X &&
+iptables -t mangle -F && iptables -t mangle -X
+
+sudo systemctl restart docker
+
+kind delete cluster --name $(kind get clusters) 
+
+rm -rf ./quobyte-csi-experiment
