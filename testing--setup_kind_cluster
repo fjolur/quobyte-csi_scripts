@@ -1,12 +1,12 @@
 #!/bin/bash
-#<< 'COMMENTS'
 
 # Pre-requirements:
-#workstation - docker host
-#Docker, k8s, kind are installed and configured
+# valid ca.pem, client-cert.pem and client-key.pem files were added to working directory
+# Docker, k8s, kind are installed and configured
 rm -rf  kind-csi-experiment-testing-corp
 
 mkdir kind-csi-experiment-testing-corp
+cp ca.pem client-cert.pem client-key.pem kind-csi-experiment-testing-corp
 cd kind-csi-experiment-testing-corp
 
 echo "Creating a Dockerfile * * * * * * * * *  * * * * * * * * * * * * * * * * *"
@@ -23,7 +23,7 @@ ENV QUOBYTE_MOUNT_POINT=/mnt/quobyte/mounts
 END
 
 echo "Building new image using the above Dockerfile. On the local machine: * * *"
-# Change `v1` appropriately to whatever version is needed.
+# Change `v0` appropriately to whatever version is needed.
 docker build -t 'quobyte/kind-node-testing:v0' -f Dockerfile .
 
 docker image ls | grep 'quobyte/kind-node-testing:v0'
@@ -60,6 +60,12 @@ kubectl get namespaces --context kind-quobyte-csi-experiment-testing
 kubectl config use-context kind-quobyte-csi-experiment-testing
 kubectl config set-context --current --namespace=quobyte
 
+echo 'creating configmaps adding required access files'
+kubectl -n quobyte create configmap quobyte-ca.pem --from-file=ca.pem
+kubectl -n quobyte create configmap quobyte-cert.pem --from-file=client-cert.pem
+kubectl -n quobyte create configmap quobyte-key.pem --from-file=client-key.pem
+
+chmod +x ../install_csi_3x ../pre-flight_checks
 docker cp ../install_csi_3x $(docker ps -aqf "name=control-plane"):/
 docker cp ../pre-flight_checks $(docker ps -aqf "name=control-plane"):/
 

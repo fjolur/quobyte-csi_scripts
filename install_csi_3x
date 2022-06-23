@@ -1,12 +1,18 @@
 #!/bin/bash
-
 # Requirements https://github.com/quobyte/quobyte-csi#requirements
-# moved to Dockerfile
-#CSI_DRIVER={CSI_DRIVER:-"quobyte"}; QUOBYTE_API_URL="http://testing-api.corp.quobyte.com:7860"; QUOBYTE_REGISTRY="testing.corp.quobyte.com"; CSI_PROVISIONER="csi.quobyte.com"; RELEASE_TAG="v1.0.5"
+# ./testing--setup_kind_cluster successfully executed
+# this sript should be run from kind cluster control-plane node
 
-# run a client with a mount point at /mnt/quobyte/mounts
+if [[ $1 = '' ]]; then
+echo "Usage: ./install_csi_3x [options]
+Options:
+  install		deploy Quobyte CSI Driver and Quobyte Clients
+  e2e			run end-to-end Quobyte CSI Driver tests
+  uninstall		delete all entities, created with 'install' script"
 
-if [[ $1 = "install" ]]; then
+exit 0
+
+elif [[ $1 = "install" ]]; then
 
 #install wget, git, update and clean
 apt-get -y update 
@@ -15,11 +21,10 @@ apt-get clean
 
 #install helm
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 && chmod 700 get_helm.sh && ./get_helm.sh
-  
+
 # set Quobyte CSI driver being used:
 # For example, to install Quobyte CSI release v1.0.5,
 # please set RELEASE_TAG="v1.0.5"
-
 
 # clone quobyte-csi repo and e2e script
 echo ''
@@ -39,15 +44,10 @@ cd quobyte-csi
 mv docs/e2e ../ # move out of csi code base
 chmod +x ../e2e
 
-echo 'kubectl get namespaces --context $(kubectl config get-contexts -o name)'
-kubectl get namespaces --context $(kubectl config get-contexts -o name)
-
 kubectl config set-context --current --namespace=quobyte
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 ## https://github.com/quobyte/quobyte-csi/blob/master/docs/install_client/deploy_clients_3_x.md
 echo ''
-
 echo '# # # # Editing example/client.yaml'
 sed -i 's/namespace: <CHANGE-NAMESPACE>/namespace: quobyte/' ./example/client.yaml
 sed -i 's/version: \"2\"/version: \"3\"/' ./example/client.yaml # set client version to an actual one
@@ -85,10 +85,6 @@ helm template ./quobyte-csi-driver --debug > csi-driver.yaml
 #install csi helm package and verify if it's successfully installed
 helm install $CSI_DRIVER ./quobyte-csi-driver --set quobyte.apiURL=$QUOBYTE_API_URL
 helm list | grep "$CSI_DRIVER":q:q
-if [[ "$?" != 0 ]]; then
-  echo "driver installation failed"
-  exit 1
-fi
 
 echo ''
 echo '# # # # Verify the status of Quobyte CSI driver pods'
@@ -96,25 +92,26 @@ echo 'kubectl get CSIDriver | grep ^${CSI_PROVISIONER}'
 kubectl get CSIDriver | grep ^${CSI_PROVISIONER}
 
 echo ''
+read -p "Waiting 15s before containers will be Running" -t 15
+
 echo 'cluster nodes status:'
 echo 'kubectl -n kube-system get po -owide | grep ^quobyte-csi-.*-$CSI_PROVISIONER'
 kubectl -n kube-system get po -owide | grep ^quobyte-csi-.*-$CSI_PROVISIONER
 
-kubectl -n quobyte create configmap quobyte-ca.pem --from-file=ca.pem
-kubectl -n quobyte create configmap quobyte-cert.pem --from-file=client-cert.pem
-kubectl -n quobyte create configmap quobyte-key.pem --from-file=client-key.pem
-
+echo ''
 echo '# # # # Deploying Containerized Quobyte client  '
 echo '# # kubectl apply -f example/client.yaml'
-#  Deploy Quobyte client
 kubectl apply -f example/client.yaml
 
 echo 'list client pods'
 echo 'kubectl get pods'
 kubectl get pods
+exit 0
+
 
 elif [[ $1 = "e2e" ]]; then
 	../e2e
+exit 0
 
 elif [[ $1 = "uninstall" ]]; then
 	echo 'deleting created daemonset client'
@@ -123,10 +120,11 @@ elif [[ $1 = "uninstall" ]]; then
 	rm -rf /etc/quobyte
 	rm -rf /root/.quobyte
 	rm -rf /mnt/quobyte
-	#rm -rf /quobyte-csi
+	rm -rf /quobyte-csi
 	echo 'deleting CSI driver'
 	echo ''
-        echo 'delete configMaps'
-        kubectl delete configmaps quobyte-ca.pem quobyte-cert.pem quobyte-key.pem
-    helm delete $CSI_DRIVER
+	echo 'deleting configMaps'
+	kubectl delete configmaps quobyte-ca.pem quobyte-cert.pem quobyte-key.pem
+	helm delete $CSI_DRIVER
 fi
+exit 0
